@@ -6,49 +6,62 @@ on:
       - master
       
 jobs:
-
-  BuildProject:
-      runs-on: ubuntu-latest
-      steps:
-        - uses: actions/checkout@v2
-
-        - name: build banking
-          shell: bash
-          run: |
-            cd banking
-            cmake -H. -B_built
-            cmake --build _built
-          
-  Testing:
+jobs:
+  Check_tests_on_linux:
     runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-      
-      - name: update
-        run:  |
-          git submodule update --init
-          sudo apt install lcov
-          sudo apt install g++-7
-      
-      - name: test
-        shell: bash
-        run: |
-          mkdir _built && cd _built
-          CXX=/usr/bin/g++-7 cmake -DCOVERAGE=1 ..
-          cmake --build .
-          ./RunTest
-          lcov -t "banking" -o lcov.info -c -d .
-          
-      - name: CovBeg
-        uses: coverallsapp/github-action@master
-        with:
-          github-token: ${{ secrets.github_token }}
-          parallel: true
-          path-to-lcov: ./_built/lcov.info
-          coveralls-endpoint: https://coveralls.io
 
-      - name: CovFin
+    steps:
+      - name: Git clone my repo
+        uses: actions/checkout@v1      
+      
+      - name: Check cmake version
+        run : cmake --version
+        
+      - name : Prepare environment
+        shell: bash
+        run  : |
+          git --version
+          git submodule update --init --recursive
+        
+      - name: Build system of tests
+        run : |
+          mkdir cmake && cd cmake
+          cmake ..
+          make
+          
+       
+      - name: Run tests
+        run : cmake/tests
+        
+  Build_tests_for_Coveralls:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Git clone my repo
+        uses: actions/checkout@v1 
+        
+      - name : Prepare environment
+        shell: bash
+        run  : |
+          git --version
+          git submodule update --init --recursive
+          sudo apt install lcov
+          
+      - name: Build system of tests with --coverage
+        run : |
+          mkdir cmake && cd cmake
+          cmake -DCOVERAGE=1 ..
+          make
+          ./tests
+          
+      - name: Create lcov.info
+        run : |
+          cd cmake
+          lcov --capture --directory . --output-file lcov.info --test-name tests
+          
+      - name: Coveralls.io
         uses: coverallsapp/github-action@master
         with:
-          github-token: ${{ secrets.github_token }}
-          parallel-finished: true
+          github-token      : ${{ secrets.GITHUB_TOKEN }}
+          path-to-lcov      : ./cmake/lcov.info
+          coveralls-endpoint: https://coveralls.io
