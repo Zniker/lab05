@@ -6,7 +6,6 @@ on:
       - master
       
 jobs:
-jobs:
   Check_tests_on_linux:
     runs-on: ubuntu-latest
 
